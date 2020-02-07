@@ -1,0 +1,13 @@
+syntax = "proto3";
+
+service KeyWordMessaging {
+rpc SetKeyWord(KeyWordReq) returns (RedisKeyResp) {}
+}
+
+message KeyWordReq {
+    string word = 1;
+}
+
+message RedisKeyResp {
+    string redisKey = 1;
+}

@@ -1,0 +1,7 @@
+---
+port: ":50051"
+adress: "localhost:50051"
+default_port: ":8080"
+redis_addr: "localhost:6379"
+redis_pass: ""
+redis_db: 0

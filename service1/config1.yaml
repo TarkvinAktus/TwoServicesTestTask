@@ -1,0 +1,9 @@
+--- 
+port: ":50051"
+redis_key: "__MyTestDataKey__"
+redis_addr: "localhost:6379"
+redis_pass: ""
+redis_db: 0
+url: "https://www.googleapis.com/customsearch/v1"
+cx: ""
+key: ""
