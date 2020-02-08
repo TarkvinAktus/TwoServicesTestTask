@@ -4,8 +4,8 @@ import (
 	pb "GoTestTask/protobuf"
 	"context"
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
+	"log"
 	"net"
 	"net/http"
 	"path/filepath"
@@ -26,7 +26,7 @@ type item struct {
 	Link  string `json:"snippet"`
 }
 
-type configFile struct {
+type configs struct {
 	Port      string `yaml:"port"`
 	RedisKey  string `yaml:"redis_key"`
 	RedisAddr string `yaml:"redis_addr"`
@@ -42,40 +42,32 @@ type server struct {
 	pb.UnimplementedKeyWordMessagingServer
 }
 
-func makeReqWithParams(params ...string) string {
-	var result string
-	//concat params
-
-	return result
+func simpleSearchRequest(url string, q string, cx string, key string) string {
+	q = "q=" + q
+	cx = "cx=" + cx
+	key = "key=" + key
+	if q == "" || cx == "" || key == "" {
+		log.Println("Error! missing URL params. Check config file 'URL', 'cx' or 'key' params")
+	}
+	return url + "?" + q + "&" + cx + "&" + key
 }
 
-func requestToGoogle(request string, conf configFile) googleResp {
+func requestToGoogle(request string, conf configs) googleResp {
 
 	var response googleResp
 
-	//do concat func
-	url := conf.URL
-
-	q := "q=" + request
-	cx := "cx=" + conf.Cx
-	key := "key=" + conf.Key
-
-	getReq := url + "?" + q + "&" + cx + "&" + key
-
-	fmt.Println(getReq)
-
-	resp, err := http.Get(getReq)
+	resp, err := http.Get(simpleSearchRequest(conf.URL, request, conf.Cx, conf.Key))
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 
 	bytes, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 
 	if err := json.Unmarshal(bytes, &response); err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 
 	return response
@@ -87,11 +79,8 @@ func (s *server) SetKeyWord(ctx context.Context, in *pb.KeyWordReq) (*pb.RedisKe
 
 	redisKey := conf.RedisKey
 
-	fmt.Println("Received: ", in.GetWord())
-
 	//req to google api
 	gResponse := requestToGoogle(in.GetWord(), conf)
-	fmt.Println(gResponse)
 
 	//redis
 	client := redis.NewClient(&redis.Options{
@@ -100,26 +89,27 @@ func (s *server) SetKeyWord(ctx context.Context, in *pb.KeyWordReq) (*pb.RedisKe
 		DB:       conf.RedisDB,
 	})
 
-	err := client.Set(redisKey, "some_test_data", 0).Err()
-	if err != nil {
-		fmt.Println("redis SET err ", err)
+	client.Del(redisKey)
+
+	for i := 0; i < 10; i++ {
+		_ = client.LPush(redisKey, gResponse.Items[i].Title)
 	}
 
 	return &pb.RedisKeyResp{RedisKey: redisKey}, nil
 }
 
-func getConfig() configFile {
+func getConfig() configs {
+	var conf configs
+
 	filename, _ := filepath.Abs("./config1.yaml")
 	yamlFile, err := ioutil.ReadFile(filename)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
-
-	var conf configFile
 
 	err = yaml.Unmarshal(yamlFile, &conf)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
 	}
 
 	return conf
@@ -130,11 +120,11 @@ func main() {
 
 	lis, err := net.Listen("tcp", conf.Port)
 	if err != nil {
-		fmt.Printf("failed to listen: %v", err)
+		log.Printf("failed to listen: %v", err)
 	}
 	s := grpc.NewServer()
 	pb.RegisterKeyWordMessagingServer(s, &server{})
 	if err := s.Serve(lis); err != nil {
-		fmt.Printf("failed to serve: %v", err)
+		log.Printf("failed to serve: %v", err)
 	}
 }
