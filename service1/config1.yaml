@@ -1,9 +1,10 @@
 --- 
-port: ":50051"
+listen_port: ":50051"
 redis_key: "gResponseList"
 redis_addr: "localhost:6379"
 redis_pass: ""
 redis_db: 0
-url: "https://www.googleapis.com/customsearch/v1"
-cx: ""
-key: ""
+req_url: "https://www.googleapis.com/customsearch/v1"
+req_cx: ""
+req_key: ""
+req_num: "10"

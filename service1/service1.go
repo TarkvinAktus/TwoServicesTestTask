@@ -27,14 +27,15 @@ type item struct {
 }
 
 type configs struct {
-	Port      string `yaml:"port"`
-	RedisKey  string `yaml:"redis_key"`
-	RedisAddr string `yaml:"redis_addr"`
-	RedisPass string `yaml:"redis_pass"`
-	RedisDB   int    `yaml:"redis_db"`
-	URL       string `yaml:"url"`
-	Cx        string `yaml:"cx"`
-	Key       string `yaml:"key"`
+	ListenPort string `yaml:"listen_port"`
+	RedisKey   string `yaml:"redis_key"`
+	RedisAddr  string `yaml:"redis_addr"`
+	RedisPass  string `yaml:"redis_pass"`
+	RedisDB    int    `yaml:"redis_db"`
+	ReqURL     string `yaml:"req_url"`
+	ReqCx      string `yaml:"req_cx"`
+	ReqKey     string `yaml:"req_key"`
+	ReqNum     string `yaml:"req_num"`
 }
 
 // server is used to implement helloworld.GreeterServer.
@@ -42,21 +43,22 @@ type server struct {
 	pb.UnimplementedKeyWordMessagingServer
 }
 
-func simpleSearchRequest(url string, q string, cx string, key string) string {
+func simpleSearchRequest(url string, q string, cx string, key string, num string) string {
 	q = "q=" + q
 	cx = "cx=" + cx
 	key = "key=" + key
+	num = "num=" + num
 	if q == "" || cx == "" || key == "" {
-		log.Println("Error! missing URL params. Check config file 'URL', 'cx' or 'key' params")
+		log.Println("Error! missing URL params. Check config file 'URL', 'cx', 'key' or 'num' params")
 	}
-	return url + "?" + q + "&" + cx + "&" + key
+	return url + "?" + q + "&" + cx + "&" + key + "&" + num
 }
 
 func requestToGoogle(request string, conf configs) googleResp {
 
 	var response googleResp
 
-	resp, err := http.Get(simpleSearchRequest(conf.URL, request, conf.Cx, conf.Key))
+	resp, err := http.Get(simpleSearchRequest(conf.ReqURL, request, conf.ReqCx, conf.ReqKey, conf.ReqNum))
 	if err != nil {
 		log.Println(err)
 	}
@@ -91,7 +93,7 @@ func (s *server) SetKeyWord(ctx context.Context, in *pb.KeyWordReq) (*pb.RedisKe
 
 	client.Del(redisKey)
 
-	for i := 0; i < 10; i++ {
+	for i := range gResponse.Items {
 		_ = client.LPush(redisKey, gResponse.Items[i].Title)
 	}
 
@@ -118,7 +120,7 @@ func getConfig() configs {
 func main() {
 	conf := getConfig()
 
-	lis, err := net.Listen("tcp", conf.Port)
+	lis, err := net.Listen("tcp", conf.ListenPort)
 	if err != nil {
 		log.Printf("failed to listen: %v", err)
 	}

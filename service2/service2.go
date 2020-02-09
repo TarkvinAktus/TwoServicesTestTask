@@ -18,9 +18,8 @@ import (
 )
 
 type configFile struct {
-	Port        string `yaml:"port"`
-	Address     string `yaml:"adress"`
-	DefaultPort string `yaml:"default_port"`
+	GrpcAddress string `yaml:"grpc_adress"`
+	ListenPort  string `yaml:"listen_port"`
 	RedisAddr   string `yaml:"redis_addr"`
 	RedisPass   string `yaml:"redis_pass"`
 	RedisDB     int    `yaml:"redis_db"`
@@ -108,7 +107,7 @@ func main() {
 	conf := getConfig()
 	// Set up a connection to the server
 
-	conn, err := grpc.Dial(conf.Address, grpc.WithInsecure(), grpc.WithBlock())
+	conn, err := grpc.Dial(conf.GrpcAddress, grpc.WithInsecure(), grpc.WithBlock())
 	if err != nil {
 		log.Println("did not connect: ", err)
 	}
@@ -120,5 +119,5 @@ func main() {
 		mainHandler(w, r, client, conf)
 	})
 
-	http.ListenAndServe(conf.DefaultPort, nil)
+	http.ListenAndServe(conf.ListenPort, nil)
 }
