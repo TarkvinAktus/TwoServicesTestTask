@@ -21,9 +21,7 @@ type googleResp struct {
 }
 
 type item struct {
-	Kind  string `json:"kind"`
 	Title string `json:"title"`
-	Link  string `json:"snippet"`
 }
 
 type configs struct {
