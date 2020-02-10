@@ -1,7 +1,6 @@
 package main
 
 import (
-	pb "GoTestTask/protobuf"
 	"context"
 	"encoding/json"
 	"io/ioutil"
@@ -10,6 +9,8 @@ import (
 	"path/filepath"
 	"sort"
 	"time"
+
+	pb "GoTestTask/protobuf"
 
 	"github.com/go-redis/redis/v7"
 	"gopkg.in/yaml.v2"
