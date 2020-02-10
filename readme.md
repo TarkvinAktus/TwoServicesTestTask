@@ -43,8 +43,4 @@ localhost:8080?keyword=wiki
     ]
 }
 ```
-### Зависимости
-
-  - Redis
-  - gRPC
-  - gopkg.in/yaml.v2
+### Зависимости реализованы с помощью go mod
