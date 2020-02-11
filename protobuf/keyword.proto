@@ -1,7 +1,10 @@
+//package protobuf;
+//здесь забыто име пакета
 syntax = "proto3";
 
 service KeyWordMessaging {
-rpc SetKeyWord(KeyWordReq) returns (RedisKeyResp) {}
+    // немного некорректный синтаксис прото файла
+    rpc SetKeyWord(KeyWordReq) returns (RedisKeyResp);
 }
 
 message KeyWordReq {

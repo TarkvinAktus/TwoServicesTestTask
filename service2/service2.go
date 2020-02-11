@@ -10,6 +10,7 @@ import (
 	"sort"
 	"time"
 
+	// github.com/tarkvincactus/gotesttask/proto
 	pb "GoTestTask/protobuf"
 
 	"github.com/go-redis/redis/v7"
@@ -18,6 +19,7 @@ import (
 	grpc "google.golang.org/grpc"
 )
 
+// в другом сревисе эта структуры называется configs - названия неконсистенты
 type configFile struct {
 	GrpcAddress string `yaml:"grpc_adress"`
 	ListenPort  string `yaml:"listen_port"`
@@ -26,6 +28,8 @@ type configFile struct {
 	RedisDB     int    `yaml:"redis_db"`
 }
 
+// не точно, но вроде в таком просто случае можно 
+// анмаршалить респонс без отдельной структуры вовсе
 type JSONresponse struct {
 	SearchTitle []string `json:"search_title"`
 }
@@ -48,6 +52,7 @@ func getConfig() configFile {
 	return conf
 }
 
+// ручкам лучше давать осмысленные названия, типа "Search"
 func mainHandler(w http.ResponseWriter, r *http.Request, client pb.KeyWordMessagingClient, conf configFile) {
 	var response JSONresponse
 
@@ -60,10 +65,14 @@ func mainHandler(w http.ResponseWriter, r *http.Request, client pb.KeyWordMessag
 		return
 	}
 
+	// вот то, что ты используешь контекст - очень круто, мы были удивлены
 	//count timeout
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
 	defer cancel()
 
+	// используем функцию из другого сервиса. кажется, надо выносить в отдельный пакет
+	// сервис2 по сути выполняет поиск, просто кешируя его после
+	// выглядит не оч логично, что функция поиска называется setkeyword
 	resp, err := client.SetKeyWord(ctx, &pb.KeyWordReq{Word: key[0]})
 	if err != nil {
 		log.Println("set keyword err: ", err)
@@ -72,36 +81,37 @@ func mainHandler(w http.ResponseWriter, r *http.Request, client pb.KeyWordMessag
 	}
 
 	//redis settings
+	// вот это лучше перенести в меин
 	rClient := redis.NewClient(&redis.Options{
 		Addr:     conf.RedisAddr,
 		Password: conf.RedisPass,
 		DB:       conf.RedisDB,
 	})
 
+	// ху из рклиент - лучше уж оставить редисКлиент
+	// 0, -1 
 	val, err := rClient.LRange(resp.GetRedisKey(), 0, -1).Result()
 	if err == redis.Nil {
 		log.Println("redis key does not exist")
 		w.WriteHeader(http.StatusInternalServerError)
 		return
-
 	} else if err != nil {
 		log.Println("err - ", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
-	} else {
-		sort.Strings(val)
-		response.SearchTitle = val
+	}
+	sort.Strings(val)
+	response.SearchTitle = val
 
-		byteResponse, err := json.Marshal(response)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		w.Write(byteResponse)
+	byteResponse, err := json.Marshal(response)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(byteResponse)
+	// return забыт
 }
 
 func main() {
@@ -120,5 +130,6 @@ func main() {
 		mainHandler(w, r, client, conf)
 	})
 
+	// log.Fatal(http.ListenAndServe(conf.ListenPort, nil))
 	http.ListenAndServe(conf.ListenPort, nil)
 }
