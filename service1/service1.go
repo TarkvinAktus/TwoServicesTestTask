@@ -52,35 +52,44 @@ func simpleSearchRequest(url string, q string, cx string, key string, num string
 	return url + "?" + q + "&" + cx + "&" + key + "&" + num
 }
 
-func requestToGoogle(request string, conf configs) googleResp {
+func requestToGoogle(request string, conf configs) (googleResp, error) {
 
 	var response googleResp
 
 	resp, err := http.Get(simpleSearchRequest(conf.ReqURL, request, conf.ReqCx, conf.ReqKey, conf.ReqNum))
 	if err != nil {
-		log.Println(err)
+		log.Println("http.Get", err)
+		return response, err
 	}
 
 	bytes, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		log.Println(err)
+		log.Println("ioutil.ReadAll", err)
+		return response, err
 	}
 
 	if err := json.Unmarshal(bytes, &response); err != nil {
-		log.Println(err)
+		log.Println("json.Unmarshal", err)
+		return response, err
 	}
 
-	return response
+	return response, nil
 }
 
 // SetKeyWord implements keyword.SetKeyWord
 func (s *server) SetKeyWord(ctx context.Context, in *pb.KeyWordReq) (*pb.RedisKeyResp, error) {
-	conf := getConfig()
+	conf, err := getConfig()
+	if err != nil {
+		return &pb.RedisKeyResp{RedisKey: ""}, err
+	}
 
 	redisKey := conf.RedisKey
 
 	//req to google api
-	gResponse := requestToGoogle(in.GetWord(), conf)
+	gResponse, err := requestToGoogle(in.GetWord(), conf)
+	if err != nil {
+		return &pb.RedisKeyResp{RedisKey: ""}, err
+	}
 
 	//redis
 	client := redis.NewClient(&redis.Options{
@@ -90,33 +99,40 @@ func (s *server) SetKeyWord(ctx context.Context, in *pb.KeyWordReq) (*pb.RedisKe
 	})
 
 	client.Del(redisKey)
+	//del err
 
 	for i := range gResponse.Items {
 		_ = client.LPush(redisKey, gResponse.Items[i].Title)
+		//push err
 	}
 
-	return &pb.RedisKeyResp{RedisKey: redisKey}, nil
+	return &pb.RedisKeyResp{RedisKey: redisKey}, err
 }
 
-func getConfig() configs {
+func getConfig() (configs, error) {
 	var conf configs
 
 	filename, _ := filepath.Abs("./config1.yaml")
 	yamlFile, err := ioutil.ReadFile(filename)
 	if err != nil {
 		log.Println(err)
+		return conf, err
 	}
 
 	err = yaml.Unmarshal(yamlFile, &conf)
 	if err != nil {
 		log.Println(err)
+		return conf, err
 	}
 
-	return conf
+	return conf, nil
 }
 
 func main() {
-	conf := getConfig()
+	conf, err := getConfig()
+	if err != nil {
+		panic(err)
+	}
 
 	lis, err := net.Listen("tcp", conf.ListenPort)
 	if err != nil {

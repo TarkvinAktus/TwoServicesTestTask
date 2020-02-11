@@ -30,22 +30,23 @@ type JSONresponse struct {
 	SearchTitle []string `json:"search_title"`
 }
 
-func getConfig() configFile {
+func getConfig() (configFile, error) {
+	var conf configFile
+
 	filename, _ := filepath.Abs("./config2.yaml")
 	yamlFile, err := ioutil.ReadFile(filename)
-
 	if err != nil {
 		log.Println(err)
+		return conf, err
 	}
-
-	var conf configFile
 
 	err = yaml.Unmarshal(yamlFile, &conf)
 	if err != nil {
 		log.Println(err)
+		return conf, err
 	}
 
-	return conf
+	return conf, nil
 }
 
 func mainHandler(w http.ResponseWriter, r *http.Request, client pb.KeyWordMessagingClient, conf configFile) {
@@ -66,8 +67,8 @@ func mainHandler(w http.ResponseWriter, r *http.Request, client pb.KeyWordMessag
 
 	resp, err := client.SetKeyWord(ctx, &pb.KeyWordReq{Word: key[0]})
 	if err != nil {
-		log.Println("set keyword err: ", err)
-		w.WriteHeader(http.StatusInternalServerError)
+		log.Println("service 1 err", err)
+		http.Error(w, "service 1 err", http.StatusInternalServerError)
 		return
 	}
 
@@ -105,7 +106,10 @@ func mainHandler(w http.ResponseWriter, r *http.Request, client pb.KeyWordMessag
 }
 
 func main() {
-	conf := getConfig()
+	conf, err := getConfig()
+	if err != nil {
+		panic(err)
+	}
 	// Set up a connection to the server
 
 	conn, err := grpc.Dial(conf.GrpcAddress, grpc.WithInsecure(), grpc.WithBlock())
@@ -119,6 +123,8 @@ func main() {
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		mainHandler(w, r, client, conf)
 	})
+
+	//log.Println("did not connect: ", err)
 
 	http.ListenAndServe(conf.ListenPort, nil)
 }
