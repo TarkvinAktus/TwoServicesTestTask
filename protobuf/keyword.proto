@@ -3,7 +3,7 @@ package protobuf;
 syntax = "proto3";
 
 service KeyWordMessaging {
-rpc SetKeyWord(KeyWordReq) returns (RedisKeyResp) {}
+rpc SetKeyWord(KeyWordReq) returns (RedisKeyResp);
 }
 
 message KeyWordReq {
