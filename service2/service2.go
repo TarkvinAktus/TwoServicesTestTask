@@ -18,7 +18,7 @@ import (
 	grpc "google.golang.org/grpc"
 )
 
-type configFile struct {
+type configs struct {
 	GrpcAddress string `yaml:"grpc_adress"`
 	ListenPort  string `yaml:"listen_port"`
 	RedisAddr   string `yaml:"redis_addr"`
@@ -30,8 +30,8 @@ type JSONresponse struct {
 	SearchTitle []string `json:"search_title"`
 }
 
-func getConfig() (configFile, error) {
-	var conf configFile
+func getConfig() (configs, error) {
+	var conf configs
 
 	filename, _ := filepath.Abs("./config2.yaml")
 	yamlFile, err := ioutil.ReadFile(filename)
@@ -49,7 +49,8 @@ func getConfig() (configFile, error) {
 	return conf, nil
 }
 
-func mainHandler(w http.ResponseWriter, r *http.Request, client pb.KeyWordMessagingClient, conf configFile) {
+//Search -
+func Search(w http.ResponseWriter, r *http.Request, client pb.KeyWordMessagingClient, redisClient *redis.Client, conf configs) {
 	var response JSONresponse
 
 	key, ok := r.URL.Query()["keyword"]
@@ -65,6 +66,7 @@ func mainHandler(w http.ResponseWriter, r *http.Request, client pb.KeyWordMessag
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*2)
 	defer cancel()
 
+	//Set keyword to 1st service to search
 	resp, err := client.SetKeyWord(ctx, &pb.KeyWordReq{Word: key[0]})
 	if err != nil {
 		log.Println("service 1 err", err)
@@ -72,14 +74,7 @@ func mainHandler(w http.ResponseWriter, r *http.Request, client pb.KeyWordMessag
 		return
 	}
 
-	//redis settings
-	rClient := redis.NewClient(&redis.Options{
-		Addr:     conf.RedisAddr,
-		Password: conf.RedisPass,
-		DB:       conf.RedisDB,
-	})
-
-	val, err := rClient.LRange(resp.GetRedisKey(), 0, -1).Result()
+	val, err := redisClient.LRange(resp.GetRedisKey(), 0, -1).Result()
 	if err == redis.Nil {
 		log.Println("redis key does not exist")
 		w.WriteHeader(http.StatusInternalServerError)
@@ -101,6 +96,7 @@ func mainHandler(w http.ResponseWriter, r *http.Request, client pb.KeyWordMessag
 
 		w.Header().Set("Content-Type", "application/json")
 		w.Write(byteResponse)
+		return
 	}
 
 }
@@ -120,11 +116,15 @@ func main() {
 
 	client := pb.NewKeyWordMessagingClient(conn)
 
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		mainHandler(w, r, client, conf)
+	redisClient := redis.NewClient(&redis.Options{
+		Addr:     conf.RedisAddr,
+		Password: conf.RedisPass,
+		DB:       conf.RedisDB,
 	})
 
-	//log.Println("did not connect: ", err)
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		Search(w, r, client, redisClient, conf)
+	})
 
 	http.ListenAndServe(conf.ListenPort, nil)
 }
