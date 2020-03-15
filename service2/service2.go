@@ -10,7 +10,8 @@ import (
 	"sort"
 	"time"
 
-	pb "GoTestTask/protobuf"
+	//pb "GoTestTask/protobuf"
+	pb "github.com/TarkvinAktus/TwoServicesTestTask/protobuf"
 
 	"github.com/go-redis/redis/v7"
 	"gopkg.in/yaml.v2"

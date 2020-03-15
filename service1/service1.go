@@ -1,7 +1,7 @@
 package main
 
 import (
-	pb "GoTestTask/protobuf"
+	//pb "GoTestTask/protobuf"
 	"context"
 	"encoding/json"
 	"io/ioutil"
@@ -9,6 +9,8 @@ import (
 	"net"
 	"net/http"
 	"path/filepath"
+
+	pb "github.com/TarkvinAktus/TwoServicesTestTask/protobuf"
 
 	"github.com/go-redis/redis/v7"
 	"gopkg.in/yaml.v2"
